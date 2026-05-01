@@ -146,6 +146,7 @@ with m2:
 st.divider()
 st.header("🚀 Phase 6: Clinical Deployment")
 st.sidebar.markdown("### Patient Vitals Input")
+
 inputs = {}
 for f in final_features[:5]: # Input for top 5 features
     inputs[f] = st.sidebar.number_input(f"Value for {f}", value=float(df_raw[f].mean()))
@@ -163,24 +164,41 @@ if patient_prob >= risk_threshold:
 else:
     st.success(f"Low Pathological Risk (Benign): {1-patient_prob:.2%}")
 
-# Explainability: FIXED TypeError and IndexError logic
+# ==============================================================================
+# EXPLAINABILITY (BUG FIX APPLIED)
+# ==============================================================================
 st.subheader("🧬 Explainable Clinical Justification (SHAP)")
 explainer = shap.TreeExplainer(model)
 shap_values = explainer.shap_values(input_scaled)
 
-# Determine the correct shape of values and base value
+# 1. Safely extract 1D SHAP values for the Malignant class
 if isinstance(shap_values, list):
-    # Standard format: [Benign_Array, Malignant_Array]
     s_values = shap_values[1][0] 
     base_val = explainer.expected_value[1]
+elif len(np.shape(shap_values)) == 3:
+    # Handles SHAP > 0.41 3D array formats
+    s_values = shap_values[0, :, 1]
+    base_val = explainer.expected_value[1]
 else:
-    # Single array format for some SHAP/Model versions
     s_values = shap_values[0]
     base_val = explainer.expected_value
 
-# Final check to ensure base_val is a scalar float to avoid TypeError
+# Ensure base_value is a native Python float
 if hasattr(base_val, "__len__"):
-    base_val = base_val[0]
+    base_val = float(base_val[0])
+else:
+    base_val = float(base_val)
 
-st_shap(shap.force_plot(base_val, s_values, input_df.iloc[0, :]), height=200)
+# 2. Extract raw 1D numpy array to prevent Pandas Series IndexErrors
+feature_vals = np.round(input_df.values[0], 4)
+
+# 3. Generate Plot using native types
+plot_fig = shap.force_plot(
+    base_value=base_val,
+    shap_values=s_values,
+    features=feature_vals,
+    feature_names=final_features
+)
+
+st_shap(plot_fig, height=200)
 st.caption("Red: Increases Malignancy Risk | Blue: Decreases Risk[cite: 1].")
