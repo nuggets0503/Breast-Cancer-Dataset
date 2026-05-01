@@ -13,177 +13,174 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, accuracy_score, recall_score
 
 # ==============================================================================
-# CONFIGURATION & DATA LOADING (PHASE 2)
+# CONFIGURATION & DATA ACQUISITION (PHASE 2)
 # ==============================================================================
-st.set_page_config(page_title="Breast Cancer Decision Support", layout="wide")
+st.set_page_config(page_title="Breast Cancer Diagnostic Portal", layout="wide")
 sns.set_theme(style="whitegrid", palette="viridis")
 
 @st.cache_data
-def load_data():
-    """Phase 2: Data Acquisition and Initial Encoding[cite: 1, 2]."""
+def get_clinical_data():
+    # Data Understanding: Acquisition
     dataset = fetch_ucirepo(id=17)
     X = dataset.data.features
     y = dataset.data.targets
-    # Clinical Encoding: Malignant = 1, Benign = 0[cite: 1]
+    # Encoding: Malignant = 1, Benign = 0
     y_encoded = y.iloc[:, 0].map({'M': 1, 'B': 0})
     df = pd.concat([X, y_encoded], axis=1)
     df.rename(columns={df.columns[-1]: 'Diagnosis'}, inplace=True)
     return df, X.columns.tolist()
 
-df_raw, all_features = load_data()
+df_raw, all_features = get_clinical_data()
 
-# ==========================================
-# PHASE 1: BUSINESS UNDERSTANDING[cite: 1]
-# ==========================================
-st.title("🔬 Breast Cancer Diagnostic Analytics Portal")
-with st.container():
-    st.header("Phase 1: Business Understanding")
+# ==============================================================================
+# PHASE 1: BUSINESS UNDERSTANDING
+# ==============================================================================
+st.title("🔬 Clinical Breast Cancer Diagnostic System")
+with st.expander("📌 CRISP-DM Phase 1: Business Understanding", expanded=True):
     st.markdown("""
-    **Objective:** Develop an explainable diagnostic tool to classify tumors as Malignant or Benign based on FNA images[cite: 1].
-    
-    **Clinical Mandates:**
-    *   **Statistical Rigor:** Alpha level of $\alpha = 0.01$ to ensure feature robustness[cite: 1, 2].
-    *   **Sensitivity:** Primary focus on minimizing False Negatives (missed diagnoses)[cite: 1].
-    *   **Explainability:** Doctors must understand which nuclear features drive a high-risk prediction[cite: 1].
+    **Clinical Objective:** Develop an automated system to classify tumors with high statistical confidence.
+    *   **Rigor:** Alpha level $\alpha=0.01$ ensures only robust features are used[cite: 1].
+    *   **Clinical Priority:** High sensitivity (Recall) is mandatory to minimize missed diagnoses[cite: 1].
+    *   **Requirement:** Explainable AI (SHAP) to justify clinical decisions to medical staff[cite: 1].
     """)
 
-# ==========================================
-# PHASE 2: DATA UNDERSTANDING (EDA)[cite: 1, 2]
-# ==========================================
-st.divider()
+# ==============================================================================
+# PHASE 2: DATA UNDERSTANDING (EDA)
+# ==============================================================================
 st.header("📊 Phase 2: Data Understanding")
-tab_integrity, tab_dist, tab_stats = st.tabs(["Data Integrity", "Univariate Analysis", "Statistical Significance"])
+p2_tab1, p2_tab2, p2_tab3 = st.tabs(["Data Quality", "Distribution", "Significance"])
 
-with tab_integrity:
-    st.subheader("Data Quality Audit")
+with p2_tab1:
+    st.subheader("Data Integrity Audit")
     fig_miss, ax_miss = plt.subplots(figsize=(10, 2))
     sns.heatmap(df_raw.isnull(), yticklabels=False, cbar=False, cmap='viridis', ax=ax_miss)
     st.pyplot(fig_miss)
-    st.caption("Missingness Map: Yellow lines indicate missing data points[cite: 1, 2].")
+    st.caption("Visualizing missingness patterns across clinical features[cite: 1, 2].")
 
-with tab_dist:
-    st.subheader("Distribution & Outliers")
-    selected_feat = st.selectbox("Select a feature to examine:", all_features)
-    col_hist, col_box = st.columns(2)
-    with col_hist:
-        fig_hist, ax_hist = plt.subplots()
-        sns.histplot(df_raw[selected_feat], kde=True, ax=ax_hist, color="teal")
-        st.pyplot(fig_hist)
-    with col_box:
-        fig_box, ax_box = plt.subplots()
-        sns.boxplot(data=df_raw, x='Diagnosis', y=selected_feat, palette='coolwarm', ax=ax_box)
-        st.pyplot(fig_box)
+with p2_tab2:
+    st.subheader("Univariate Feature Spreads")
+    f_select = st.selectbox("Select Feature for Analysis", all_features)
+    c1, c2 = st.columns(2)
+    with c1:
+        fig_h, ax_h = plt.subplots()
+        sns.histplot(df_raw[f_select], kde=True, ax=ax_h, color="teal")
+        st.pyplot(fig_h)
+    with c2:
+        fig_b, ax_b = plt.subplots()
+        sns.boxplot(data=df_raw, x='Diagnosis', y=f_select, palette='coolwarm', ax=ax_b)
+        st.pyplot(fig_b)
 
-# Global variables for Phase 3 and 4
-significant_features = []
+# Variable to hold features for Phase 3
+sig_features = []
 
-with tab_stats:
-    st.subheader("Normality & Significance (Alpha=0.01)[cite: 1, 2]")
+with p2_tab3:
+    st.subheader("Statistical Tally (Alpha=0.01)")
     alpha = 0.01
-    sig_summary = []
+    tally = []
     for col in all_features:
         _, p_norm = stats.shapiro(df_raw[col])
         is_normal = p_norm > alpha
-        mal, ben = df_raw[df_raw['Diagnosis'] == 1][col], df_raw[df_raw['Diagnosis'] == 0][col]
-        _, p_val = stats.ttest_ind(mal, ben) if is_normal else stats.mannwhitneyu(mal, ben)
-        
+        m, b = df_raw[df_raw['Diagnosis']==1][col], df_raw[df_raw['Diagnosis']==0][col]
+        # Automatic test selection based on distribution[cite: 1, 2]
+        _, p_val = stats.ttest_ind(m, b) if is_normal else stats.mannwhitneyu(m, b)
         if p_val < alpha:
-            significant_features.append(col)
-        sig_summary.append({"Feature": col, "P-Value": f"{p_val:.2e}", "Significant": p_val < alpha})
-    st.table(pd.DataFrame(sig_summary))
+            sig_features.append(col)
+        tally.append({"Feature": col, "Distribution": "Normal" if is_normal else "Skewed", "P-Value": f"{p_val:.2e}", "Significant": p_val < alpha})
+    st.dataframe(pd.DataFrame(tally), use_container_width=True)
 
-# ==========================================
-# PHASE 3 & 4: PREPARATION & MODELING
-# ==========================================
+# ==============================================================================
+# PHASE 3 & 4: DATA PREPARATION & MODELING
+# ==============================================================================
 @st.cache_resource
-def train_clinical_model(data, selected_cols):
-    """Phases 3 & 4: Automated Preparation and Modeling."""
-    # Handle Multicollinearity
-    X_subset = data[selected_cols]
-    corr_matrix = X_subset.corr().abs()
-    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
-    to_drop = [column for column in upper.columns if any(upper[column] > 0.90)]
-    X_filtered = X_subset.drop(columns=to_drop)
+def build_clinical_model(df, features):
+    # Phase 3: Data Preparation
+    X_sub = df[features]
+    # Remove redundant features (>0.9 correlation)
+    corr = X_sub.corr().abs()
+    upper = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
+    to_drop = [c for c in upper.columns if any(upper[c] > 0.90)]
+    X_clean = X_sub.drop(columns=to_drop)
     
-    # Split & Scale
-    X_train, X_test, y_train, y_test = train_test_split(X_filtered, data['Diagnosis'], test_size=0.2, random_state=42)
+    # Scaling and Splitting
+    X_train, X_test, y_train, y_test = train_test_split(X_clean, df['Diagnosis'], test_size=0.2, random_state=42)
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # Train
+    # Phase 4: Modeling
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train_scaled, y_train)
-    return model, scaler, X_test_scaled, y_test, X_filtered.columns.tolist(), to_drop
+    return model, scaler, X_test_scaled, y_test, X_clean.columns.tolist()
 
-model, scaler, X_test_scaled, y_test, final_features, dropped_cols = train_clinical_model(df_raw, significant_features)
+model, scaler, X_test_scaled, y_test, final_features = build_clinical_model(df_raw, sig_features)
 
 st.divider()
 st.header("⚙️ Phase 3 & 4: Preparation & Modeling")
-st.write(f"**Feature Engineering:** Removed {len(dropped_cols)} redundant features with >90% correlation.")
-st.write(f"**Final Feature Count:** {len(final_features)}")
+st.write(f"**Final Feature Set:** {len(final_features)} variables selected after removing redundancy.")
 
-# ==========================================
-# PHASE 5: EVALUATION[cite: 1]
-# ==========================================
-st.header("🤖 Phase 5: Clinical Evaluation")
-st.sidebar.title("🩺 Diagnostic Controls")
-threshold = st.sidebar.slider("Malignancy Probability Threshold", 0.0, 1.0, 0.5, 0.05)
-st.sidebar.caption("Lowering this threshold increases sensitivity (Recall)[cite: 1].")
+# ==============================================================================
+# PHASE 5: EVALUATION
+# ==============================================================================
+st.header("🤖 Phase 5: Evaluation")
+st.sidebar.title("🩺 Control Panel")
+risk_threshold = st.sidebar.slider("Malignancy Risk Threshold", 0.0, 1.0, 0.5, 0.05)
 
-y_probs = model.predict_proba(X_test_scaled)[:, 1]
-y_pred_custom = (y_probs >= threshold).astype(int)
+probs = model.predict_proba(X_test_scaled)[:, 1]
+preds = (probs >= risk_threshold).astype(int)
 
-col_m1, col_m2 = st.columns(2)
-with col_m1:
-    st.metric("Model Accuracy", f"{accuracy_score(y_test, y_pred_custom):.2%}")
-    st.metric("Clinical Sensitivity (Recall)", f"{recall_score(y_test, y_pred_custom):.2%}")
-with col_m2:
-    cm = confusion_matrix(y_test, y_pred_custom)
+m1, m2 = st.columns(2)
+with m1:
+    st.metric("Detection Sensitivity (Recall)", f"{recall_score(y_test, preds):.2%}")
+    st.info("Sensitivity tracks the ability to catch all malignant cases[cite: 1].")
+with m2:
+    cm = confusion_matrix(y_test, preds)
     fig_cm, ax_cm = plt.subplots()
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax_cm)
-    ax_cm.set_xlabel('Predicted')
-    ax_cm.set_ylabel('Actual')
+    ax_cm.set_xlabel('Predicted Risk')
+    ax_cm.set_ylabel('Actual Pathology')
     st.pyplot(fig_cm)
 
-# ==========================================
-# PHASE 6: DEPLOYMENT & EXPLAINABILITY[cite: 1, 2]
-# ==========================================
+# ==============================================================================
+# PHASE 6: DEPLOYMENT (INFERENCE)
+# ==============================================================================
 st.divider()
 st.header("🚀 Phase 6: Clinical Deployment")
-st.sidebar.markdown("---")
-st.sidebar.markdown("### Patient Input for Prediction")
-user_inputs = {}
-for feat in final_features[:5]: # Input for top 5 features
-    user_inputs[feat] = st.sidebar.number_input(f"Enter {feat}", value=float(df_raw[feat].mean()))
+st.sidebar.markdown("### Patient Vitals Input")
+inputs = {}
+for f in final_features[:5]: # Input for top 5 features
+    inputs[f] = st.sidebar.number_input(f"Value for {f}", value=float(df_raw[f].mean()))
 
-# Prediction logic
-full_input = {feat: df_raw[feat].mean() for feat in final_features}
-full_input.update(user_inputs)
+# Prediction process
+full_input = {f: df_raw[f].mean() for f in final_features}
+full_input.update(inputs)
 input_df = pd.DataFrame([full_input])
 input_scaled = scaler.transform(input_df)
-prob_malignant = model.predict_proba(input_scaled)[0][1]
+patient_prob = model.predict_proba(input_scaled)[0][1]
 
-st.subheader("Live Diagnostic Result")
-if prob_malignant >= threshold:
-    st.error(f"High Risk of Malignancy: {prob_malignant:.2%}")
+st.subheader("Diagnostic Assessment")
+if patient_prob >= risk_threshold:
+    st.error(f"High Pathological Risk Identified: {patient_prob:.2%}")
 else:
-    st.success(f"Low Risk (Benign): {(1-prob_malignant):.2%}")
+    st.success(f"Low Pathological Risk (Benign): {1-patient_prob:.2%}")
 
-# Explainability with IndexError fix
-st.subheader("🧬 Clinical Explanation (SHAP)[cite: 1]")
+# Explainability: FIXED TypeError and IndexError logic
+st.subheader("🧬 Explainable Clinical Justification (SHAP)")
 explainer = shap.TreeExplainer(model)
 shap_values = explainer.shap_values(input_scaled)
 
-# Fix for IndexError: Handle list vs array output from SHAP
+# Determine the correct shape of values and base value
 if isinstance(shap_values, list):
-    # Standard format: select index 1 for Malignant class
-    class_shap_values = shap_values[1]
-    base_value = explainer.expected_value[1]
+    # Standard format: [Benign_Array, Malignant_Array]
+    s_values = shap_values[1][0] 
+    base_val = explainer.expected_value[1]
 else:
-    # Single array format for binary classification
-    class_shap_values = shap_values
-    base_value = explainer.expected_value
+    # Single array format for some SHAP/Model versions
+    s_values = shap_values[0]
+    base_val = explainer.expected_value
 
-st_shap(shap.force_plot(base_value, class_shap_values, input_df), height=200)
-st.caption("Red: Increases risk | Blue: Decreases risk[cite: 1].")
+# Final check to ensure base_val is a scalar float to avoid TypeError
+if hasattr(base_val, "__len__"):
+    base_val = base_val[0]
+
+st_shap(shap.force_plot(base_val, s_values, input_df.iloc[0, :]), height=200)
+st.caption("Red: Increases Malignancy Risk | Blue: Decreases Risk[cite: 1].")
