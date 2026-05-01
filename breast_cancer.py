@@ -90,7 +90,7 @@ col3.metric("Benign (Class 0)", len(df[df['Diagnosis'] == 0]))
 # ==========================================
 st.header("📊 CRISP-DM Phase 2: Data Understanding")
 
-tabs = st.tabs(["Data Quality", "Distribution & Outlier Analysis", "Statistical Tally"])
+tabs = st.tabs(["Data Quality", "Visualizations", "Statistical Tally"])
 
 with tabs[0]:
     st.subheader("Missingness Map")
