@@ -1,10 +1,8 @@
+streamlit
 pandas
 numpy
 matplotlib
 seaborn
-shap
-streamlit
-joblib
-ucimlrepo
 scipy
 scikit-learn
+ucimlrepo
