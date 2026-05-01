@@ -6,3 +6,5 @@ seaborn
 scipy
 scikit-learn
 ucimlrepo
+shap
+streamlit-shap
