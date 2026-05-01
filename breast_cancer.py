@@ -26,7 +26,6 @@ In clinical settings, we cannot treat data points as mere numbers. We must ensur
 # ==============================================================================
 # 1. DEPENDENCY MANAGEMENT & IMPORTS
 # ==============================================================================
-!pip install ucimlrepo shap streamlit -q
 
 import pandas as pd
 import numpy as np
