@@ -81,10 +81,10 @@ from scipy.stats import ttest_ind
 
 _, p_val = ttest_ind(benign, malignant, equal_var=False)
 
-    stats_results.append({
-        "Feature": col,
-        "p_value": p_val,
-        "Significant": p_val < alpha
+stats_results.append({
+    "Feature": col,
+    "p_value": p_val,
+    "Significant": p_val < alpha
     })
 
 stats_df = pd.DataFrame(stats_results)
