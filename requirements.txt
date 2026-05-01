@@ -7,3 +7,5 @@ openpyxl
 statsmodels
 streamlit-folium
 folium
+ucimlrepo
+shap
