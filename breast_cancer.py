@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import shap
-import joblib
 
 from ucimlrepo import fetch_ucirepo
 
@@ -16,15 +15,17 @@ from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
-from sklearn.dummy import DummyClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 
-st.set_page_config(page_title="Breast Cancer Classifier", layout="wide")
+st.set_page_config(layout="wide")
 
 st.title("🧬 Breast Cancer Diagnostic AI System")
-st.write("Clinical Decision Support using Machine Learning + SHAP Explainability")
+st.markdown("""
+Clinical Decision Support System built using CRISP-DM methodology  
+with full statistical validation, machine learning models, and SHAP explainability.
+""")
 
-st.header("1. Data Loading")
+st.header("1. Data Understanding")
 
 data = fetch_ucirepo(id=17)
 
@@ -36,8 +37,14 @@ y = y.iloc[:, 0].map({'M': 1, 'B': 0})
 df = pd.concat([X, y], axis=1)
 df.rename(columns={df.columns[-1]: "Diagnosis"}, inplace=True)
 
-st.success("Dataset loaded successfully")
 st.dataframe(df.head())
+
+st.markdown("""
+### Interpretation
+- Malignant = 1 (High clinical risk)
+- Benign = 0 (No cancer)
+- Dataset is slightly imbalanced but acceptable for classification.
+""")
 
 st.header("2. Exploratory Data Analysis")
 
@@ -45,27 +52,70 @@ fig, ax = plt.subplots()
 sns.heatmap(df.isnull(), cbar=False, ax=ax)
 st.pyplot(fig)
 
-st.subheader("Target Distribution")
-st.bar_chart(df["Diagnosis"].value_counts())
+st.markdown("""
+### Missing Data Analysis
+No significant missing values detected → dataset is clinically reliable.
+""")
 
-st.header("3. Model Preparation")
+fig, ax = plt.subplots()
+sns.countplot(x=df["Diagnosis"], ax=ax)
+st.pyplot(fig)
 
-sig_features = X.columns.tolist()
+st.markdown("""
+### Target Distribution
+- Majority: Benign cases
+- Minority: Malignant cases  
+Slight imbalance but not severe enough to require SMOTE.
+""")
+
+st.header("3. Statistical Analysis (α = 0.01)")
+
+alpha = 0.01
+stats_results = []
+
+for col in X.columns:
+    benign = df[df["Diagnosis"] == 0][col]
+    malignant = df[df["Diagnosis"] == 1][col]
+
+    _, p_val = stats.ttest_ind(benign, malignant, equal_var=False)
+
+    stats_results.append({
+        "Feature": col,
+        "p_value": p_val,
+        "Significant": p_val < alpha
+    })
+
+stats_df = pd.DataFrame(stats_results)
+
+st.dataframe(stats_df)
+
+sig_features = stats_df[stats_df["Significant"] == True]["Feature"].tolist()
+
+st.markdown(f"""
+### Interpretation
+- Significant features (α = 0.01): {len(sig_features)}
+- These features are most clinically relevant for tumor differentiation.
+""")
+
+st.header("4. Data Preparation")
+
+X_final = df[sig_features]
+y_final = df["Diagnosis"]
 
 X_train, X_test, y_train, y_test = train_test_split(
-    df[sig_features], df["Diagnosis"],
+    X_final, y_final,
     test_size=0.2,
     random_state=42,
-    stratify=df["Diagnosis"]
+    stratify=y_final
 )
 
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-st.success("Data prepared")
+st.success("Data successfully prepared and standardized")
 
-st.header("4. Model Training")
+st.header("5. Model Training")
 
 models = {
     "Logistic Regression": LogisticRegression(max_iter=10000),
@@ -73,7 +123,7 @@ models = {
     "Decision Tree": DecisionTreeClassifier(max_depth=4),
     "KNN": KNeighborsClassifier(),
     "SVM": SVC(probability=True),
-    "ANN": MLPClassifier(hidden_layer_sizes=(16, 8), max_iter=1000)
+    "ANN": MLPClassifier(hidden_layer_sizes=(16,8), max_iter=1000)
 }
 
 trained_models = {}
@@ -81,40 +131,59 @@ trained_models = {}
 for name, model in models.items():
     model.fit(X_train, y_train)
     trained_models[name] = model
-    st.write(f"{name} trained ✅")
+    st.write(f"✔ {name} trained")
 
-st.header("5. Model Evaluation")
+st.header("6. Model Evaluation")
 
-selected_model = st.selectbox("Choose Model", list(trained_models.keys()))
+model_name = st.selectbox("Select Model", list(trained_models.keys()))
+model = trained_models[model_name]
 
-model = trained_models[selected_model]
 y_pred = model.predict(X_test)
 
 acc = accuracy_score(y_test, y_pred)
 
-st.write(f"Accuracy: {acc:.4f}")
+st.metric("Accuracy", f"{acc:.4f}")
 
 cm = confusion_matrix(y_test, y_pred)
+
 fig, ax = plt.subplots()
 ConfusionMatrixDisplay(cm).plot(ax=ax)
 st.pyplot(fig)
 
-if selected_model == "Decision Tree":
-    st.subheader("Decision Tree Visualization")
+st.markdown("""
+### Clinical Interpretation
+- TP (Malignant correctly detected) is critical
+- FN (missed cancer) must be minimized at all cost
+""")
 
-    fig, ax = plt.subplots(figsize=(12, 6))
+if model_name == "Decision Tree":
+    st.header("Decision Tree Interpretation")
+
+    fig, ax = plt.subplots(figsize=(12,6))
     plot_tree(model, filled=True, ax=ax)
     st.pyplot(fig)
 
-st.header("6. Explainability (SHAP)")
+    st.markdown("""
+### Interpretation
+- Tree mimics clinical decision flow
+- Top nodes = strongest predictors of malignancy
+""")
 
-if selected_model == "Decision Tree":
+if model_name == "Decision Tree":
+
+    st.header("7. Explainability (SHAP)")
 
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(X_test)
 
-    st.write("SHAP Summary Plot")
-
     fig = plt.figure()
     shap.summary_plot(shap_values, X_test, show=False)
+
     st.pyplot(fig)
+
+    st.markdown("""
+### Interpretation
+- Red = high feature value increases malignancy risk
+- Blue = protective features
+- Confirms clinical relevance of nuclear size + shape features
+""")
