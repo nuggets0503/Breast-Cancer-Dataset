@@ -48,12 +48,12 @@ for feat in feature_list[:5]: # Using top 5 features for prediction demo
 # ==========================================
 st.title("🔬 Breast Cancer Diagnostic Framework")
 with st.expander("📌 CRISP-DM Phase 1: Business Understanding", expanded=True):
-    st.write("**Objective:** Develop a robust diagnostic tool to classify tumors as Malignant (1) or Benign (0)[cite: 1].")
-    st.write("**Clinical Priority:** Minimize False Negatives (missed diagnoses) and ensure model explainability[cite: 1].")
-    st.info("Statistical Significance Level established at $\\alpha = 0.01$[cite: 1].")
+    st.write("**Objective:** Develop a robust diagnostic tool to classify tumors as Malignant (1) or Benign (0).")
+    st.write("**Clinical Priority:** Minimize False Negatives (missed diagnoses) and ensure model explainability.")
+    st.info("Statistical Significance Level established at $\\alpha = 0.01$.")
 
 # ==========================================
-# PHASE 2: DATA UNDERSTANDING[cite: 1, 2]
+# PHASE 2: DATA UNDERSTANDING
 # ==========================================
 phase2_tab1, phase2_tab2, phase2_tab3 = st.tabs(["Data Integrity", "Univariate Analysis", "Bivariate Significance"])
 
@@ -62,7 +62,7 @@ with phase2_tab1:
     fig_miss, ax_miss = plt.subplots(figsize=(10, 2))
     sns.heatmap(df_raw.isnull(), yticklabels=False, cbar=False, cmap='viridis', ax=ax_miss)
     st.pyplot(fig_miss)
-    st.caption("Missingness Map: Yellow indicates NaN values[cite: 1, 2].")
+    st.caption("Missingness Map: Yellow indicates NaN values.")
 
 with phase2_tab2:
     st.header("Distribution & Outliers")
