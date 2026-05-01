@@ -548,7 +548,7 @@ To satisfy clinical transparency requirements, we use **SHAP (SHapley Additive e
 # 1. DECISION TREE VISUALIZATION
 # ==============================================================================
 plt.figure(figsize=(20, 10))
-plot_tree(trained_models["Decision Tree"],
+plot_tree(dt_model,
           feature_names=sig_features,
           class_names=['Benign', 'Malignant'],
           filled=True, rounded=True, fontsize=12)
@@ -579,7 +579,7 @@ Additionally, limiting the tree depth helps prevent overfitting and ensures that
 # ==============================================================================
 # 2. SHAP FOR DECISION TREE (TreeExplainer)
 # ==============================================================================
-explainer_dt = shap.TreeExplainer(trained_models["Decision Tree"])
+explainer_dt = shap.TreeExplainer(dt_model)
 # Calculate values using the scaled test set
 shap_values_dt = explainer_dt.shap_values(X_test_scaled)
 
@@ -609,7 +609,7 @@ The SHAP summary plots allow us to "look under the hood" of our 98% accurate ANN
 # 3. SHAP FOR NAIVE BAYES (KernelExplainer)
 # ==============================================================================
 background = shap.kmeans(X_train_scaled, 10)
-explainer_nb = shap.KernelExplainer(trained_models["Naive Bayes"].predict_proba, background)
+explainer_nb = shap.KernelExplainer(nb_model.predict_proba, background)
 shap_values_nb = explainer_nb.shap_values(X_test_scaled)
 
 print("\nSHAP Summary Plot for Naive Bayes (Malignant Prediction):")
