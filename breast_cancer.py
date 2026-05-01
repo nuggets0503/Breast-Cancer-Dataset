@@ -233,7 +233,7 @@ plt.show()
 print(f"Features Analyzed: {len(X.columns)}")
 
 print(f"Statistically Significant Features found: {len(sig_features)}")
-display(stats_df.head(10))
+st.dataframe(stats_df.head(10))
 
 """### Why: Normality and Test Selection
 In clinical data mining, we cannot assume that biopsy measurements (like 'Area' or 'Concavity') follow a perfect Bell Curve.
