@@ -77,7 +77,9 @@ for col in X.columns:
     benign = df[df["Diagnosis"] == 0][col]
     malignant = df[df["Diagnosis"] == 1][col]
 
-    _, p_val = stats.ttest_ind(benign, malignant, equal_var=False)
+from scipy.stats import ttest_ind
+
+_, p_val = ttest_ind(benign, malignant, equal_var=False)
 
     stats_results.append({
         "Feature": col,
