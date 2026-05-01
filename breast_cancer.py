@@ -8,7 +8,7 @@ from scipy import stats
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_center, ConfusionMatrixDisplay, classification_report, accuracy_score, recall_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report, accuracy_score, recall_score
 
 # ==========================================
 # 0. SETUP & DATA LOADING
