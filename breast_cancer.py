@@ -168,7 +168,7 @@ for col in X.columns:
     })
 
 tally_df = pd.DataFrame(stats_tally)
-display(tally_df)
+st.dataframe(tally_df)
 
 # Correlation Heatmap for Significant Features
 plt.figure(figsize=(12, 10))
