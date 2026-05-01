@@ -3,189 +3,163 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import shap
-
 from ucimlrepo import fetch_ucirepo
+from scipy import stats
 
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import GaussianNB
-from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
-
-st.set_page_config(layout="wide")
-
-st.title("🧬 Breast Cancer Diagnostic AI System")
-st.markdown("""
-Clinical Decision Support System built using CRISP-DM methodology  
-with full statistical validation, machine learning models, and SHAP explainability.
-""")
-
-st.header("1. Data Understanding")
-
-data = fetch_ucirepo(id=17)
-
-X = data.data.features
-y = data.data.targets
-
-y = y.iloc[:, 0].map({'M': 1, 'B': 0})
-
-df = pd.concat([X, y], axis=1)
-df.rename(columns={df.columns[-1]: "Diagnosis"}, inplace=True)
-
-st.dataframe(df.head())
-
-st.markdown("""
-### Interpretation
-- Malignant = 1 (High clinical risk)
-- Benign = 0 (No cancer)
-- Dataset is slightly imbalanced but acceptable for classification.
-""")
-
-st.header("2. Exploratory Data Analysis")
-
-fig, ax = plt.subplots()
-sns.heatmap(df.isnull(), cbar=False, ax=ax)
-st.pyplot(fig)
-
-st.markdown("""
-### Missing Data Analysis
-No significant missing values detected → dataset is clinically reliable.
-""")
-
-fig, ax = plt.subplots()
-sns.countplot(x=df["Diagnosis"], ax=ax)
-st.pyplot(fig)
-
-st.markdown("""
-### Target Distribution
-- Majority: Benign cases
-- Minority: Malignant cases  
-Slight imbalance but not severe enough to require SMOTE.
-""")
-
-st.header("3. Statistical Analysis (α = 0.01)")
-
-alpha = 0.01
-stats_results = []
-
-for col in X.columns:
-    benign = df[df["Diagnosis"] == 0][col]
-    malignant = df[df["Diagnosis"] == 1][col]
-
-from scipy.stats import ttest_ind
-
-_, p_val = ttest_ind(benign, malignant, equal_var=False)
-
-stats_results.append({
-    "Feature": col,
-    "p_value": p_val,
-    "Significant": p_val < alpha
-    })
-
-stats_df = pd.DataFrame(stats_results)
-
-st.dataframe(stats_df)
-
-sig_features = stats_df[stats_df["Significant"] == True]["Feature"].tolist()
-
-st.markdown(f"""
-### Interpretation
-- Significant features (α = 0.01): {len(sig_features)}
-- These features are most clinically relevant for tumor differentiation.
-""")
-
-st.header("4. Data Preparation")
-
-X_final = df[sig_features]
-y_final = df["Diagnosis"]
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X_final, y_final,
-    test_size=0.2,
-    random_state=42,
-    stratify=y_final
+# ==========================================
+# 1. PAGE CONFIGURATION
+# ==========================================
+st.set_page_config(
+    page_title="Breast Cancer Diagnostic Analytics",
+    page_icon="🔬",
+    layout="wide"
 )
 
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
+# Set global plotting theme
+sns.set_theme(style="whitegrid", palette="viridis")
 
-st.success("Data successfully prepared and standardized")
+# ==========================================
+# 2. DATA ACQUISITION (CACHED)
+# ==========================================
+@st.cache_data
+def load_data():
+    """Fetches and encodes the UCI Breast Cancer Wisconsin dataset."""
+    dataset = fetch_ucirepo(id=17)
+    X = dataset.data.features
+    y = dataset.data.targets
+    
+    # Encode labels: Malignant = 1, Benign = 0
+    y_encoded = y.iloc[:, 0].map({'M': 1, 'B': 0})
+    
+    # Combine for analysis
+    df = pd.concat([X, y_encoded], axis=1)
+    df.rename(columns={df.columns[-1]: 'Diagnosis'}, inplace=True)
+    return df, X.columns.tolist()
 
-st.header("5. Model Training")
+df_raw, all_features = load_data()
 
-models = {
-    "Logistic Regression": LogisticRegression(max_iter=10000),
-    "Naive Bayes": GaussianNB(),
-    "Decision Tree": DecisionTreeClassifier(max_depth=4),
-    "KNN": KNeighborsClassifier(),
-    "SVM": SVC(probability=True),
-    "ANN": MLPClassifier(hidden_layer_sizes=(16,8), max_iter=1000)
-}
+# ==========================================
+# 3. SIDEBAR CONTROLS
+# ==========================================
+st.sidebar.title("🔍 Analytics Control Panel")
+st.sidebar.markdown("---")
 
-trained_models = {}
+st.sidebar.subheader("Feature Selection")
+selected_features = st.sidebar.multiselect(
+    "Select features for visualization:",
+    options=all_features,
+    default=all_features[:6]
+)
 
-for name, model in models.items():
-    model.fit(X_train, y_train)
-    trained_models[name] = model
-    st.write(f"✔ {name} trained")
+st.sidebar.subheader("Filter by Class")
+show_malignant = st.sidebar.checkbox("Show Malignant Cases", value=True)
+show_benign = st.sidebar.checkbox("Show Benign Cases", value=True)
 
-st.header("6. Model Evaluation")
+# Apply filters to dataframe
+mask = pd.Series([False] * len(df_raw))
+if show_malignant:
+    mask |= (df_raw['Diagnosis'] == 1)
+if show_benign:
+    mask |= (df_raw['Diagnosis'] == 0)
 
-model_name = st.selectbox("Select Model", list(trained_models.keys()))
-model = trained_models[model_name]
+df = df_raw[mask]
 
-y_pred = model.predict(X_test)
-
-acc = accuracy_score(y_test, y_pred)
-
-st.metric("Accuracy", f"{acc:.4f}")
-
-cm = confusion_matrix(y_test, y_pred)
-
-fig, ax = plt.subplots()
-ConfusionMatrixDisplay(cm).plot(ax=ax)
-st.pyplot(fig)
+# ==========================================
+# PHASE 1: BUSINESS UNDERSTANDING
+# ==========================================
+st.title("🔬 Breast Cancer Diagnostic Analytics")
+st.markdown("---")
 
 st.markdown("""
-### Clinical Interpretation
-- TP (Malignant correctly detected) is critical
-- FN (missed cancer) must be minimized at all cost
+### CRISP-DM Phase 1: Business Understanding
+The primary objective is to develop a diagnostic tool to classify breast tumors based on physical characteristics derived from digitized images.
+
+**Clinical Standards:**
+*   **Explainability:** Ensuring models are transparent for clinical review.
+*   **Statistical Rigor:** Applying a strict significance level of $\alpha = 0.01$ to minimize false negatives[cite: 1].
 """)
 
-if model_name == "Decision Tree":
-    st.header("Decision Tree Interpretation")
+# Key Metrics
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Samples", len(df))
+col2.metric("Malignant (Class 1)", len(df[df['Diagnosis'] == 1]))
+col3.metric("Benign (Class 0)", len(df[df['Diagnosis'] == 0]))
 
-    fig, ax = plt.subplots(figsize=(12,6))
-    plot_tree(model, filled=True, ax=ax)
-    st.pyplot(fig)
+# ==========================================
+# PHASE 2: DATA UNDERSTANDING (EDA)
+# ==========================================
+st.header("📊 CRISP-DM Phase 2: Data Understanding")
 
-    st.markdown("""
-### Interpretation
-- Tree mimics clinical decision flow
-- Top nodes = strongest predictors of malignancy
-""")
+tabs = st.tabs(["Data Quality", "Distribution Analysis", "Statistical Tally"])
 
-if model_name == "Decision Tree":
+with tabs[0]:
+    st.subheader("Missingness Map")
+    fig_miss, ax_miss = plt.subplots(figsize=(10, 4))
+    sns.heatmap(df.isnull(), yticklabels=False, cbar=False, cmap='viridis', ax=ax_miss)
+    st.pyplot(fig_miss)
+    st.caption("Yellow indicates NaN values. The map verifies data integrity[cite: 1].")
 
-    st.header("7. Explainability (SHAP)")
+with tabs[1]:
+    if not selected_features:
+        st.warning("Please select features in the sidebar to view distributions.")
+    else:
+        st.subheader("Outlier Detection & Skewness")
+        
+        # Boxplots
+        fig_box, ax_box = plt.subplots(figsize=(15, 8))
+        df_melt = df.melt(id_vars='Diagnosis', value_vars=selected_features)
+        sns.boxplot(data=df_melt, x='variable', y='value', hue='Diagnosis', palette='coolwarm', ax=ax_box)
+        plt.xticks(rotation=45)
+        st.pyplot(fig_box)
+        
+        # Histograms
+        st.subheader("Feature Frequency Distributions")
+        fig_hist, axes = plt.subplots(nrows=(len(selected_features)+2)//3, ncols=3, figsize=(15, 10))
+        axes = axes.flatten()
+        for i, col in enumerate(selected_features):
+            sns.histplot(df[col], kde=True, color="teal", ax=axes[i])
+            axes[i].set_title(f"Distribution: {col}")
+        plt.tight_layout()
+        st.pyplot(fig_hist)
 
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(X_test)
+with tabs[2]:
+    st.subheader("Automated Statistical Significance ($\alpha=0.01$)")
+    alpha = 0.01
+    results = []
 
-    fig = plt.figure()
-    shap.summary_plot(shap_values, X_test, show=False)
+    for col in all_features:
+        # Normality Check
+        _, p_norm = stats.shapiro(df_raw[col])
+        is_normal = p_norm > alpha
 
-    st.pyplot(fig)
+        malignant = df_raw[df_raw['Diagnosis'] == 1][col]
+        benign = df_raw[df_raw['Diagnosis'] == 0][col]
 
-    st.markdown("""
-### Interpretation
-- Red = high feature value increases malignancy risk
-- Blue = protective features
-- Confirms clinical relevance of nuclear size + shape features
-""")
+        # Test selection based on normality[cite: 1]
+        if is_normal:
+            _, p_val = stats.ttest_ind(malignant, benign)
+            test_type = "T-test"
+        else:
+            _, p_val = stats.mannwhitneyu(malignant, benign)
+            test_type = "Mann-Whitney U"
+
+        results.append({
+            "Feature": col,
+            "Distribution": "Normal" if is_normal else "Skewed",
+            "Test Used": test_type,
+            "P-Value": f"{p_val:.2e}",
+            "Significant": p_val < alpha
+        })
+
+    st.table(pd.DataFrame(results))
+
+# ==========================================
+# MULTIVARIATE ANALYSIS
+# ==========================================
+st.header("🔗 Multivariate Analysis")
+st.markdown("Correlogram of statistically significant features.")
+sig_cols = [r['Feature'] for r in results if r['Significant']]
+if sig_cols:
+    fig_corr, ax_corr = plt.subplots(figsize=(12, 10))
+    sns.heatmap(df[sig_cols].corr(), cmap='coolwarm', center=0, ax=ax_corr)
+    st.pyplot(fig_corr)
