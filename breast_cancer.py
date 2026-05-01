@@ -110,7 +110,7 @@ plt.title("Missingness Map (Yellow indicates NaN values)")
 plt.show()
 
 # Boxplots for Outlier Detection (Top 6 Significant Features)
-sig_features = [col for col in df.columns if df[col].p_value < 0.05]
+sig_features = X.columns.tolist()
 plt.figure(figsize=(15, 8))
 for i, col in enumerate(sig_features[:6]):
     plt.subplot(2, 3, i + 1)
