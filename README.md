@@ -1,6 +1,6 @@
 # 🔬 Clinical Breast Cancer Diagnostic System
 
-An explainable machine-learning tool that classifies breast tumors as malignant or benign, which prioritize diagnostic sensitivity so that no cancer case goes missed.*
+_An explainable machine-learning tool that classifies breast tumors as malignant or benign, which prioritize diagnostic sensitivity so that no cancer case goes missed.*_
 
 ## 📌 Executive Summary
 Missed malignancies carry a far higher cost than false alarms. This application builds a diagnostic classifier on the Wisconsin Breast Cancer dataset that is tuned for **high sensitivity (recall)** to catch as many true cancer cases as possible and pairs every prediction with a **SHAP explanation** so clinicians can see *why* a tumor was flagged, rather than trusting a black box.
