@@ -47,7 +47,7 @@ Deploy this as a **screening triage aid, not a replacement for pathology**: set 
 git clone https://github.com/nuggets0503/breast-cancer-dataset.git
 cd breast-cancer-dataset
 pip install -r requirements.txt
-python breast_cancer.py
+python breast_cancer.ipynb
 ```
 
 ## ⚖️ License
